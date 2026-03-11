@@ -65,6 +65,24 @@ router.post('/mark', async (req, res) => {
     }
 });
 
+// Get All Attendance Logs for Employee
+router.get('/logs/:employeeId', async (req, res) => {
+    try {
+        const { employeeId } = req.params;
+        const data = await ddbDocClient.send(new QueryCommand({
+            TableName: 'AttendanceLogs',
+            KeyConditionExpression: 'employeeId = :eid',
+            ExpressionAttributeValues: {
+                ':eid': employeeId
+            }
+        }));
+        res.json(data.Items || []);
+    } catch (error) {
+        console.error('Error fetching logs:', error);
+        res.status(500).json({ error: 'Failed to fetch attendance logs' });
+    }
+});
+
 // Get Current Rule for Employee
 router.get('/current-rule/:employeeId', async (req, res) => {
     try {
