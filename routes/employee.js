@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { ddbDocClient } = require('../config/awsConfig');
-const { PutCommand, GetCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
+const { PutCommand, GetCommand, ScanCommand, DeleteCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const crypto = require('crypto');
 
 // Add New Employee
@@ -101,6 +101,54 @@ router.get('/:id', async (req, res) => {
     } catch (error) {
         console.error('Error fetching employee:', error);
         res.status(500).json({ error: 'Failed to fetch employee' });
+    }
+});
+
+// Update Employee Details
+router.put('/update/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { pin, name, email, role, department, phone, location } = req.body;
+
+        await ddbDocClient.send(new UpdateCommand({
+            TableName: 'Employees',
+            Key: { employeeId: id },
+            UpdateExpression: 'set pin = :p, #n = :name, email = :e, #r = :role, department = :d, phone = :ph, #l = :loc',
+            ExpressionAttributeNames: {
+                '#n': 'name',
+                '#r': 'role',
+                '#l': 'location'
+            },
+            ExpressionAttributeValues: {
+                ':p': pin,
+                ':name': name,
+                ':e': email,
+                ':role': role,
+                ':d': department,
+                ':ph': phone,
+                ':loc': location
+            }
+        }));
+
+        res.json({ message: 'Employee updated successfully' });
+    } catch (error) {
+        console.error('Update Error:', error);
+        res.status(500).json({ error: 'Failed to update employee' });
+    }
+});
+
+// Delete Employee
+router.delete('/delete/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        await ddbDocClient.send(new DeleteCommand({
+            TableName: 'Employees',
+            Key: { employeeId: id }
+        }));
+        res.json({ message: 'Employee deleted successfully' });
+    } catch (error) {
+        console.error('Delete Error:', error);
+        res.status(500).json({ error: 'Failed to delete employee' });
     }
 });
 
