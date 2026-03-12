@@ -105,32 +105,32 @@ router.get('/logs/:employeeId', async (req, res) => {
     }
 });
 
-// Get Current Rule for Employee
-router.get('/current-rule/:employeeId', async (req, res) => {
+// Get All Applicable Geofence Rules for Employee
+router.get('/current-rules/:employeeId', async (req, res) => {
     try {
         const today = new Date().toISOString().split('T')[0];
         
-        // In a real app, we would query the GeofenceRules table by employeeId and date
-        // Note: GeofenceRules needs a GSI on employeeId and date for efficient lookup
-        // For now, we fetch the latest rule matching the employeeId via Scan (for demo)
+        // Fetch all rules
         const data = await ddbDocClient.send(new ScanCommand({
             TableName: 'GeofenceRules',
         }));
         
-        const rules = data.Items || [];
-        // Find specific event rule for employee today
-        let rule = rules.find(r => r.employeeId === req.params.employeeId && r.date === today);
+        const allRules = data.Items || [];
         
-        // Fallback to Main Branch rule if no specific event
-        if (!rule) {
-            rule = rules.find(r => r.employeeId === 'All' || r.eventName === 'Main Branch');
-        }
+        // Filter rules applicable to this employee:
+        // 1. Branch locations (employeeId === 'All')
+        // 2. Specific events assigned to this employeeId for today
+        const applicableRules = allRules.filter(r => {
+            const isBranch = r.employeeId === 'All' || r.eventName?.toLowerCase().includes('branch');
+            const isAssignedEvent = r.employeeId === req.params.employeeId && r.date === today;
+            return isBranch || isAssignedEvent;
+        });
 
-        if (!rule) return res.status(404).json({ error: 'No active rule for today' });
-        res.json(rule);
+        if (applicableRules.length === 0) return res.status(404).json({ error: 'No active geofences found' });
+        res.json(applicableRules);
     } catch (error) {
-        console.error('Error fetching current rule:', error);
-        res.status(500).json({ error: 'Failed to fetch rule' });
+        console.error('Error fetching rules:', error);
+        res.status(500).json({ error: 'Failed to fetch rules' });
     }
 });
 
