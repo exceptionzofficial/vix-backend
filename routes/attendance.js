@@ -7,38 +7,60 @@ const { IndexFaceCommand, SearchFacesByImageCommand } = require('@aws-sdk/client
 // Mark Attendance with Face Recognition
 router.post('/mark', async (req, res) => {
     try {
-        const { employeeId, imageBase64, location, status } = req.body;
+        const { employeeId, imageBase64, location, status, type = 'check-in' } = req.body;
 
-        // 1. Convert Image to Buffer
-        const imageBuffer = Buffer.from(imageBase64, 'base64');
+        // 1. Get accurate India time
+        const now = new Date();
+        const indiaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+        const dateStr = indiaTime.toISOString().split('T')[0];
+        const timeStr = indiaTime.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-        // 2. Search for face in Rekognition Collection
-        // Note: For a real app, we would have already indexed the employee's face
-        // Here we simulate the match to provide the mock workflow requested
-        
-        // MOCK: SearchFacesByImage placeholder logic
-        /*
-        const searchResponse = await rekognitionClient.send(new SearchFacesByImageCommand({
-            CollectionId: 'CrayonzEmployees',
-            Image: { Bytes: imageBuffer },
-            MaxFaces: 1,
-            FaceMatchThreshold: 90
-        }));
+        if (type === 'check-out') {
+            // Find the latest log for this employee today
+            const logsRes = await ddbDocClient.send(new QueryCommand({
+                TableName: 'AttendanceLogs',
+                KeyConditionExpression: 'employeeId = :eid',
+                ExpressionAttributeValues: { ':eid': employeeId },
+                ScanIndexForward: false, // Descending by sort key (timestamp)
+                Limit: 5
+            }));
 
-        if (searchResponse.FaceMatches.length === 0) {
-            return res.status(401).json({ error: 'Face not recognized' });
+            const latestLog = logsRes.Items?.find(log => log.date === dateStr && !log.checkOutTime);
+
+            if (!latestLog) {
+                return res.status(404).json({ error: 'No active check-in found for today' });
+            }
+
+            // Update with check-out time
+            await ddbDocClient.send(new UpdateCommand({
+                TableName: 'AttendanceLogs',
+                Key: { 
+                    employeeId: latestLog.employeeId,
+                    timestamp: latestLog.timestamp
+                },
+                UpdateExpression: 'set checkOutTime = :cot, checkoutLocation = :loc',
+                ExpressionAttributeValues: {
+                    ':cot': timeStr,
+                    ':loc': location
+                }
+            }));
+
+            return res.status(200).json({ 
+                message: 'Check-out successful', 
+                logEntry: { ...latestLog, checkOutTime: timeStr } 
+            });
         }
-        */
 
-        // 3. Log Attendance in DynamoDB
+        // 3. Log Check-in in DynamoDB
         const logEntry = {
             employeeId,
             timestamp: Date.now(),
-            date: new Date().toISOString().split('T')[0],
-            time: new Date().toLocaleTimeString(),
+            date: dateStr,
+            checkInTime: timeStr,
             location,
             status, // 'Early', 'On-Time', 'Late'
-            verified: true
+            verified: true,
+            type: 'check-in'
         };
 
         await ddbDocClient.send(new PutCommand({
@@ -46,14 +68,14 @@ router.post('/mark', async (req, res) => {
             Item: logEntry
         }));
         
-        // 4. If this is a registration, update the Employee's faceId
+        // 4. Face Registration logic
         if (req.body.isRegistration) {
             await ddbDocClient.send(new UpdateCommand({
                 TableName: 'Employees',
                 Key: { employeeId },
                 UpdateExpression: 'set faceId = :fid',
                 ExpressionAttributeValues: {
-                    ':fid': `face_${employeeId}_${Date.now()}` // Mock face ID
+                    ':fid': `face_${employeeId}_${Date.now()}`
                 }
             }));
         }
