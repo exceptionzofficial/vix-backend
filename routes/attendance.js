@@ -12,43 +12,72 @@ router.post('/mark', async (req, res) => {
         // 1. Get accurate India time
         const now = new Date();
         const indiaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-        const dateStr = indiaTime.toISOString().split('T')[0];
+        const dateStr = indiaTime.toLocaleDateString('en-GB').split('/').reverse().join('-'); // Formats as YYYY-MM-DD reliably from DD/MM/YYYY
         const timeStr = indiaTime.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
         if (type === 'check-out') {
+            const { geofenceName } = req.body;
+            console.log(`[CHECKOUT] Employee: ${employeeId}, Date: ${dateStr}, Time: ${timeStr}`);
+
             // Find the latest log for this employee today
             const logsRes = await ddbDocClient.send(new QueryCommand({
                 TableName: 'AttendanceLogs',
                 KeyConditionExpression: 'employeeId = :eid',
                 ExpressionAttributeValues: { ':eid': employeeId },
                 ScanIndexForward: false, // Descending by sort key (timestamp)
-                Limit: 5
+                Limit: 10
             }));
 
-            const latestLog = logsRes.Items?.find(log => log.date === dateStr && !log.checkOutTime);
+            const allLogs = logsRes.Items || [];
+            console.log(`[CHECKOUT] Found ${allLogs.length} logs. Dates: ${allLogs.map(l => l.date).join(', ')}`);
 
-            if (!latestLog) {
-                return res.status(404).json({ error: 'No active check-in found for today' });
+            const latestLog = allLogs.find(log => log.date === dateStr && !log.checkOutTime);
+
+            if (latestLog) {
+                // Update existing check-in with check-out time
+                await ddbDocClient.send(new UpdateCommand({
+                    TableName: 'AttendanceLogs',
+                    Key: { 
+                        employeeId: latestLog.employeeId,
+                        timestamp: latestLog.timestamp
+                    },
+                    UpdateExpression: 'set checkOutTime = :cot, checkoutLocation = :loc, checkoutGeofence = :cgeo',
+                    ExpressionAttributeValues: {
+                        ':cot': timeStr,
+                        ':loc': location,
+                        ':cgeo': geofenceName || latestLog.geofence
+                    }
+                }));
+
+                return res.status(200).json({ 
+                    message: 'Check-out successful', 
+                    logEntry: { ...latestLog, checkOutTime: timeStr } 
+                });
+            } else {
+                // No active check-in found — create a standalone checkout log
+                console.log(`[CHECKOUT] No active check-in found for ${dateStr}. Creating standalone checkout log.`);
+                const checkoutEntry = {
+                    employeeId,
+                    timestamp: Date.now(),
+                    date: dateStr,
+                    checkOutTime: timeStr,
+                    location,
+                    geofence: geofenceName || 'Unknown Branch',
+                    status: 'Checked-Out',
+                    verified: true,
+                    type: 'check-out'
+                };
+
+                await ddbDocClient.send(new PutCommand({
+                    TableName: 'AttendanceLogs',
+                    Item: checkoutEntry
+                }));
+
+                return res.status(200).json({ 
+                    message: 'Check-out recorded (no prior check-in found)', 
+                    logEntry: checkoutEntry 
+                });
             }
-
-            // Update with check-out time
-            await ddbDocClient.send(new UpdateCommand({
-                TableName: 'AttendanceLogs',
-                Key: { 
-                    employeeId: latestLog.employeeId,
-                    timestamp: latestLog.timestamp
-                },
-                UpdateExpression: 'set checkOutTime = :cot, checkoutLocation = :loc',
-                ExpressionAttributeValues: {
-                    ':cot': timeStr,
-                    ':loc': location
-                }
-            }));
-
-            return res.status(200).json({ 
-                message: 'Check-out successful', 
-                logEntry: { ...latestLog, checkOutTime: timeStr } 
-            });
         }
 
         // 3. Log Check-in in DynamoDB
@@ -57,7 +86,8 @@ router.post('/mark', async (req, res) => {
             timestamp: Date.now(),
             date: dateStr,
             checkInTime: timeStr,
-            location,
+            location, // coordinates
+            geofence: req.body.geofenceName || 'Main Branch', // human-readable branch
             status, // 'Early', 'On-Time', 'Late'
             verified: true,
             type: 'check-in'
