@@ -25,6 +25,12 @@ const tables = [
     KeySchema: [{ AttributeName: "ruleId", KeyType: "HASH" }],
     AttributeDefinitions: [{ AttributeName: "ruleId", AttributeType: "S" }],
     ProvisionedThroughput: { ReadCapacityUnits: 5, WriteCapacityUnits: 5 },
+  },
+  {
+    TableName: "LeaveRequests",
+    KeySchema: [{ AttributeName: "requestId", KeyType: "HASH" }],
+    AttributeDefinitions: [{ AttributeName: "requestId", AttributeType: "S" }],
+    ProvisionedThroughput: { ReadCapacityUnits: 5, WriteCapacityUnits: 5 },
   }
 ];
 

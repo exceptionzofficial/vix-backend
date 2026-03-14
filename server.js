@@ -14,10 +14,12 @@ initTables();
 const attendanceRoutes = require('./routes/attendance');
 const adminRoutes = require('./routes/admin');
 const employeeRoutes = require('./routes/employee');
+const leaveRoutes = require('./routes/leave');
 
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/employee', employeeRoutes);
+app.use('/api/leave', leaveRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

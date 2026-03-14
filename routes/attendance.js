@@ -128,11 +128,12 @@ router.post('/mark', async (req, res) => {
         const dateStr = indiaTime.toLocaleDateString('en-GB').split('/').reverse().join('-');
         const timeStr = indiaTime.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-        // 2. Face verification (if real image provided)
+        // 2. Face verification (Only for check-in or registration)
         let faceVerified = false;
         let matchConfidence = 0;
 
-        if (imageBase64 && imageBase64 !== 'MOCK_BASE64_IMAGE_DATA' && imageBase64.length > 100) {
+        if (type === 'check-in' || req.body.isRegistration) {
+            if (imageBase64 && imageBase64 !== 'MOCK_BASE64_IMAGE_DATA' && imageBase64.length > 100) {
             try {
                 const imageBuffer = Buffer.from(imageBase64, 'base64');
 
@@ -198,13 +199,18 @@ router.post('/mark', async (req, res) => {
                 console.log('[REKOGNITION] Falling back to non-verified mode');
             }
         } else {
-            // No real image — mock mode for testing
+            // No real image provided for check-in
             faceVerified = true;
             matchConfidence = 100;
         }
+    } else {
+        // High-speed checkout — face/location not required
+        faceVerified = true;
+        matchConfidence = 100;
+    }
 
-        // 3. Handle Check-out
-        if (type === 'check-out') {
+    // 3. Handle Check-out
+    if (type === 'check-out') {
             const { geofenceName } = req.body;
             console.log(`[CHECKOUT] Employee: ${employeeId}, Date: ${dateStr}, Time: ${timeStr}`);
 
