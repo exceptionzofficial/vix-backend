@@ -31,6 +31,18 @@ const tables = [
     KeySchema: [{ AttributeName: "requestId", KeyType: "HASH" }],
     AttributeDefinitions: [{ AttributeName: "requestId", AttributeType: "S" }],
     ProvisionedThroughput: { ReadCapacityUnits: 5, WriteCapacityUnits: 5 },
+  },
+  {
+    TableName: "WorkTasks",
+    KeySchema: [{ AttributeName: "taskId", KeyType: "HASH" }],
+    AttributeDefinitions: [{ AttributeName: "taskId", AttributeType: "S" }],
+    ProvisionedThroughput: { ReadCapacityUnits: 5, WriteCapacityUnits: 5 },
+  },
+  {
+    TableName: "Expenses",
+    KeySchema: [{ AttributeName: "expenseId", KeyType: "HASH" }],
+    AttributeDefinitions: [{ AttributeName: "expenseId", AttributeType: "S" }],
+    ProvisionedThroughput: { ReadCapacityUnits: 5, WriteCapacityUnits: 5 },
   }
 ];
 
