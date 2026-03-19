@@ -25,6 +25,12 @@ router.post('/add', async (req, res) => {
             department,
             faceId: faceId || null, 
             documents: documents || [],
+            leaveBalances: {
+                CL: 1,
+                SL: 1,
+                'EL-PL': 1,
+                LOP: 99
+            },
             createdAt: new Date().toISOString()
         };
 
@@ -97,6 +103,16 @@ router.get('/:id', async (req, res) => {
         }));
 
         if (!Item) return res.status(404).json({ error: 'Employee not found' });
+        
+        // Ensure leaveBalances exist (for older records)
+        if (!Item.leaveBalances) {
+            Item.leaveBalances = {
+                CL: 1,
+                SL: 1,
+                'EL-PL': 1,
+                LOP: 99
+            };
+        }
         res.json(Item);
     } catch (error) {
         console.error('Error fetching employee:', error);

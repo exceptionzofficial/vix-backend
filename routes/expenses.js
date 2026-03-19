@@ -4,38 +4,47 @@ const { ddbDocClient } = require('../config/awsConfig');
 const { PutCommand, ScanCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
 const crypto = require('crypto');
 
-// Submit Expense Request
-router.post('/submit', async (req, res) => {
+// Submit Multiple Expense Items (Batch)
+router.post('/submit-multiple', async (req, res) => {
     try {
-        const { employeeId, employeeName, amount, expenseDate, category, remarks } = req.body;
-        const expenseId = crypto.randomUUID();
+        const { employeeId, employeeName, expenseDate, items } = req.body;
+        
+        if (!items || !Array.isArray(items)) {
+            return res.status(400).json({ error: 'Invalid items list' });
+        }
+
+        const batchGroupId = crypto.randomUUID();
         const timestamp = Date.now();
 
-        const newExpense = {
-            expenseId,
-            employeeId,
-            employeeName,
-            amount: Number(amount),
-            expenseDate,
-            category, // Petrol, Bus, Train, etc.
-            remarks,
-            submittedBy: employeeName,
-            verifiedBy: null, // Manager verification
-            approvedBy: null, // Admin / Accounts approval
-            status: "Submitted", // Submitted, Verified, Approved, Rejected
-            timestamp,
-            createdAt: new Date().toISOString()
-        };
+        const putPromises = items.map(item => {
+            const expense = {
+                expenseId: crypto.randomUUID(),
+                batchGroupId, // Link items together
+                employeeId,
+                employeeName,
+                amount: Number(item.amount),
+                expenseDate,
+                category: item.category,
+                remarks: item.remarks,
+                submittedBy: employeeName,
+                verifiedBy: null,
+                approvedBy: null,
+                status: "Submitted",
+                timestamp,
+                createdAt: new Date().toISOString()
+            };
 
-        await ddbDocClient.send(new PutCommand({
-            TableName: 'Expenses',
-            Item: newExpense
-        }));
+            return ddbDocClient.send(new PutCommand({
+                TableName: 'Expenses',
+                Item: expense
+            }));
+        });
 
-        res.status(201).json({ message: 'Expense submitted successfully', expenseId });
+        await Promise.all(putPromises);
+        res.status(201).json({ message: 'Batch expenses submitted', batchGroupId });
     } catch (error) {
-        console.error('Error submitting expense:', error);
-        res.status(500).json({ error: 'Failed to submit expense' });
+        console.error('Error submitting batch expenses:', error);
+        res.status(500).json({ error: 'Failed' });
     }
 });
 
