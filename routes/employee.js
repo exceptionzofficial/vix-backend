@@ -7,7 +7,11 @@ const crypto = require('crypto');
 // Add New Employee
 router.post('/add', async (req, res) => {
     try {
-        const { employeeId, pin, name, email, role, department, faceId, documents, phone, location } = req.body;
+        const { 
+            employeeId, pin, name, email, role, department, faceId, 
+            documents, phone, location, familyPhoneNumber, familyRelationship, 
+            aadharNumber, dob, salary, joiningDate 
+        } = req.body;
         
         // Ensure ID and PIN are provided
         if (!employeeId || !pin) {
@@ -15,8 +19,8 @@ router.post('/add', async (req, res) => {
         }
 
         const newEmployee = {
-            employeeId, // Use provided ID
-            pin,        // Store PIN (plain text for now as per simple demo request, or bcrypt later)
+            employeeId,
+            pin,
             name,
             email,
             phone,
@@ -25,6 +29,12 @@ router.post('/add', async (req, res) => {
             department,
             faceId: faceId || null, 
             documents: documents || [],
+            familyPhoneNumber: familyPhoneNumber || null,
+            familyRelationship: familyRelationship || null,
+            aadharNumber: aadharNumber || null,
+            dob: dob || null,
+            salary: salary || null,
+            joiningDate: joiningDate || null,
             leaveBalances: {
                 CL: 1,
                 SL: 1,
@@ -124,25 +134,43 @@ router.get('/:id', async (req, res) => {
 router.put('/update/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { pin, name, email, role, department, phone, location } = req.body;
+
+        const { 
+            pin, name, email, role, department, phone, location, 
+            familyPhoneNumber, familyRelationship, index, aadharNumber, 
+            dob, salary, joiningDate 
+        } = req.body;
 
         await ddbDocClient.send(new UpdateCommand({
             TableName: 'Employees',
             Key: { employeeId: id },
-            UpdateExpression: 'set pin = :p, #n = :name, email = :e, #r = :role, department = :d, phone = :ph, #l = :loc',
+            UpdateExpression: 'set pin = :p, #n = :name, email = :e, #r = :role, #d = :dept, phone = :ph, #l = :loc, #fpn = :fpn, #fr = :fr, #an = :an, #dob = :dob, #sal = :sal, #jd = :jd',
             ExpressionAttributeNames: {
                 '#n': 'name',
                 '#r': 'role',
-                '#l': 'location'
+                '#l': 'location',
+                '#d': 'department',
+                '#fpn': 'familyPhoneNumber',
+                '#fr': 'familyRelationship',
+                '#an': 'aadharNumber',
+                '#dob': 'dob',
+                '#sal': 'salary',
+                '#jd': 'joiningDate'
             },
             ExpressionAttributeValues: {
                 ':p': pin,
                 ':name': name,
                 ':e': email,
                 ':role': role,
-                ':d': department,
+                ':dept': department,
                 ':ph': phone,
-                ':loc': location
+                ':loc': location,
+                ':fpn': familyPhoneNumber || null,
+                ':fr': familyRelationship || null,
+                ':an': aadharNumber || null,
+                ':dob': dob || null,
+                ':sal': salary || null,
+                ':jd': joiningDate || null
             }
         }));
 
