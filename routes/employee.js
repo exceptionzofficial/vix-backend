@@ -36,9 +36,9 @@ router.post('/add', async (req, res) => {
             salary: salary || null,
             joiningDate: joiningDate || null,
             leaveBalances: {
-                CL: 1,
-                SL: 1,
-                'EL-PL': 1,
+                CL: 4,
+                SL: 4,
+                'EL-PL': 4,
                 LOP: 99
             },
             createdAt: new Date().toISOString()
@@ -117,9 +117,9 @@ router.get('/:id', async (req, res) => {
         // Ensure leaveBalances exist (for older records)
         if (!Item.leaveBalances) {
             Item.leaveBalances = {
-                CL: 1,
-                SL: 1,
-                'EL-PL': 1,
+                CL: 4,
+                SL: 4,
+                'EL-PL': 4,
                 LOP: 99
             };
         }

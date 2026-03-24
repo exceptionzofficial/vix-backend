@@ -43,6 +43,12 @@ const tables = [
     KeySchema: [{ AttributeName: "expenseId", KeyType: "HASH" }],
     AttributeDefinitions: [{ AttributeName: "expenseId", AttributeType: "S" }],
     ProvisionedThroughput: { ReadCapacityUnits: 5, WriteCapacityUnits: 5 },
+  },
+  {
+    TableName: "PersonalRequests",
+    KeySchema: [{ AttributeName: "requestId", KeyType: "HASH" }],
+    AttributeDefinitions: [{ AttributeName: "requestId", AttributeType: "S" }],
+    ProvisionedThroughput: { ReadCapacityUnits: 5, WriteCapacityUnits: 5 },
   }
 ];
 
@@ -52,6 +58,7 @@ const initTables = async () => {
     const { TableNames } = await ddbClient.send(new ListTablesCommand({}));
 
     for (const table of tables) {
+      console.log(`Checking table: ${table.TableName}`);
       if (!TableNames.includes(table.TableName)) {
         console.log(`Creating table ${table.TableName}...`);
         await ddbClient.send(new CreateTableCommand(table));
@@ -60,6 +67,7 @@ const initTables = async () => {
         console.log(`Table ${table.TableName} already exists.`);
       }
     }
+    console.log("DynamoDB initialization complete.");
   } catch (error) {
     console.error("Error initializing DynamoDB tables:", error);
   }

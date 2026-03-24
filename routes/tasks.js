@@ -7,43 +7,55 @@ const crypto = require('crypto');
 // Submit Work Task
 router.post('/submit', async (req, res) => {
     try {
-        const { 
-            employeeId, employeeName, department, role, 
-            eventName, taskName, description, location, 
-            sourceFile, category, outputType, 
-            startTime, endTime, status, remarks, date 
-        } = req.body;
-
-        const taskId = crypto.randomUUID();
+        const body = req.body;
+        const tasksToSubmit = Array.isArray(body) ? body : [body];
+        
         const timestamp = Date.now();
+        const results = [];
 
-        const newTask = {
-            taskId,
-            employeeId,
-            employeeName,
-            department,
-            role,
-            eventName,
-            taskName,
-            description,
-            location,
-            sourceFile, // Drive or Sourcing
-            category, // Poster, Video, Ai, etc.
-            outputType, // Landscape or Portrait
-            startTime,
-            endTime,
-            status, // Start, Completed, Pending
-            remarks,
-            timestamp,
-            date: date || new Date().toISOString().split('T')[0]
-        };
+        for (const taskData of tasksToSubmit) {
+            const { 
+                employeeId, employeeName, department, role, 
+                eventName, taskName, description, location, 
+                sourceFile, category, outputType, 
+                startTime, endTime, status, remarks, date, sNo
+            } = taskData;
 
-        await ddbDocClient.send(new PutCommand({
-            TableName: 'WorkTasks',
-            Item: newTask
-        }));
+            const taskId = crypto.randomUUID();
 
-        res.status(201).json({ message: 'Task submitted successfully', taskId });
+            const newTask = {
+                taskId,
+                employeeId,
+                employeeName,
+                department,
+                role,
+                eventName,
+                taskName,
+                description,
+                location,
+                sourceFile, // Drive or Sourcing
+                category, // Poster, Video, Ai, etc.
+                outputType, // Landscape or Portrait
+                startTime,
+                endTime,
+                status, // Start, Completed, Pending
+                remarks,
+                sNo,
+                timestamp,
+                date: date || new Date().toISOString().split('T')[0]
+            };
+
+            await ddbDocClient.send(new PutCommand({
+                TableName: 'WorkTasks',
+                Item: newTask
+            }));
+            results.push(taskId);
+        }
+
+        res.status(201).json({ 
+            message: Array.isArray(body) ? `${results.length} tasks submitted successfully` : 'Task submitted successfully', 
+            taskIds: results 
+        });
     } catch (error) {
         console.error('Error submitting task:', error);
         res.status(500).json({ error: 'Failed to submit task' });

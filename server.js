@@ -17,6 +17,7 @@ const employeeRoutes = require('./routes/employee');
 const leaveRoutes = require('./routes/leave');
 const taskRoutes = require('./routes/tasks');
 const expenseRoutes = require('./routes/expenses');
+const personalRequestsRoutes = require('./routes/personalRequests');
 
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/admin', adminRoutes);
@@ -24,6 +25,7 @@ app.use('/api/employee', employeeRoutes);
 app.use('/api/leave', leaveRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/expenses', expenseRoutes);
+app.use('/api/personal-requests', personalRequestsRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
